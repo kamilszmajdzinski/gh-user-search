@@ -1,5 +1,7 @@
 # Github User Search
 
+Preview: https://kamilszmajdzinski.github.io/gh-user-search/
+
 To run the project, use the following commands:
 
 ```
