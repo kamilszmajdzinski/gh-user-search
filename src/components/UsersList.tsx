@@ -24,8 +24,12 @@ import { UsersListItem } from "./UsersListItem";
 const searchSchema = yup.object({
   searchQuery: yup
     .string()
-    .required("Search query is required")
-    .min(3, "Search query must be at least 3 characters"),
+    .notRequired()
+    .test(
+      "minLength",
+      "Type at least 3 characters",
+      (value) => !value || value.length >= 3
+    ),
 });
 
 export const UsersList = () => {
@@ -83,22 +87,19 @@ export const UsersList = () => {
   }, [error]);
 
   useEffect(() => {
-    debouncedSetSearchQuery(searchQuery);
-  }, [searchQuery, debouncedSetSearchQuery]);
+    if (searchQuery === "") {
+      setValue("searchQuery", "");
+      setDebouncedSearchQuery("");
+    }
+    if (searchQuery && searchQuery?.length >= 3) {
+      debouncedSetSearchQuery(searchQuery);
+    }
+  }, [searchQuery, debouncedSetSearchQuery, errors, setValue]);
 
   const handleClearSearch = () => {
     setValue("searchQuery", "");
     setDebouncedSearchQuery("");
     queryClient.removeQueries({ queryKey: ["githubUsers"] });
-  };
-
-  const renderTextFieldAndorment = () => {
-    if (searchQuery) {
-      return (
-        <ClearIcon onClick={handleClearSearch} style={{ cursor: "pointer" }} />
-      );
-    }
-    return null;
   };
 
   const lastItemRef = useCallback(
@@ -146,19 +147,35 @@ export const UsersList = () => {
           render={({ field }) => (
             <TextField
               {...field}
-              id="outlined-basic"
+              id="search-input"
               label="Type Github Username"
               variant="outlined"
               sx={{ width: "100%" }}
               onChange={(e) => {
                 field.onChange(e);
-                setValue("searchQuery", e.target.value);
+                setValue("searchQuery", e.target.value, {
+                  shouldValidate: true,
+                });
               }}
+              onBlur={field.onBlur}
               error={!!errors.searchQuery}
               helperText={errors.searchQuery?.message}
               slotProps={{
                 input: {
-                  endAdornment: renderTextFieldAndorment(),
+                  "aria-label": "Search Github users",
+                  endAdornment: searchQuery && (
+                    <button
+                      onClick={handleClearSearch}
+                      aria-label="Clear search input"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <ClearIcon />
+                    </button>
+                  ),
                 },
               }}
             />
@@ -200,16 +217,18 @@ export const UsersList = () => {
           ))}
         </List>
 
-        <Snackbar
-          open={!!fetchError}
-          autoHideDuration={3000}
-          onClose={() => setFetchError(null)}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        >
-          <Alert onClose={() => setFetchError(null)} severity="error">
-            {fetchError?.message || "Something went wrong"}
-          </Alert>
-        </Snackbar>
+        {fetchError && (
+          <Snackbar
+            open={!!fetchError}
+            autoHideDuration={3000}
+            onClose={() => setFetchError(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          >
+            <Alert onClose={() => setFetchError(null)} severity="error">
+              {fetchError?.message}
+            </Alert>
+          </Snackbar>
+        )}
 
         {isFetchingNextPage && (
           <CircularProgress
